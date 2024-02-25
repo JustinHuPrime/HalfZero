@@ -1,0 +1,15 @@
+[package]
+name = "half-zero"
+version = "0.3.1"
+authors = ["Justin Hu <justin.hu@alumni.ubc.ca>"]
+edition = "2021"
+description = "An object-oriented Rust-like programming language"
+homepage = "https://github.com/JustinHuPrime/HalfZero#readme"
+repository = "https://github.com/JustinHuPrime/HalfZero"
+license = "GPL-3.0-or-later"
+
+[[bin]]
+name = "h0c"
+path = "src/main.rs"
+
+[dependencies]
