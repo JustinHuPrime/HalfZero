@@ -138,8 +138,8 @@ impl<'args> Display for DiagnosticReport<'args> {
 }
 
 macro_rules! internal_error {
-    ($file:expr, $line:expr, $($message:tt)+) => {
-        panic!("internal compiler error: {}:{}: {}\nPlease report this at <https://github.com/JustinHuPrime/HalfZero/issues>", $file, $line, format!($($message)*))
+    ($($message:tt)+) => {
+        panic!("internal compiler error: {}:{}: {}\nPlease report this at <https://github.com/JustinHuPrime/HalfZero/issues>", file!(), line!(), format!($($message)*))
     };
 }
 pub(crate) use internal_error;

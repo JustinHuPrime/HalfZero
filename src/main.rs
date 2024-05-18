@@ -17,6 +17,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#![forbid(unsafe_code)]
+
 pub mod arg_parse;
 pub mod backend;
 pub mod diagnostics;
@@ -188,8 +190,6 @@ pub fn main() -> ExitCode {
         let FileContents { filename, contents } = match settings.setting_architecture {
             "x86_64-linux" => x86_64_linux::backend(&low_level_ir, &settings),
             _ => internal_error!(
-                file!(),
-                line!(),
                 "invalid architecture '{}' encountered",
                 settings.setting_architecture
             ),

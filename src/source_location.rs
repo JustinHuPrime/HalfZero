@@ -94,11 +94,7 @@ impl<'args> Display for SourceLocation<'args> {
             (Some(start_line), Some(start_column)) => {
                 write!(f, "{}:{}:{}", self.file, start_line, start_column)
             }
-            _ => internal_error!(
-                file!(),
-                line!(),
-                "source location may not have a column without a line"
-            ),
+            _ => internal_error!("source location may not have a column without a line"),
         }
     }
 }
