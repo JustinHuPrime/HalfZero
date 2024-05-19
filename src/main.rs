@@ -73,9 +73,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 pub fn main() -> ExitCode {
     // preliminary args stuff
-    let args = args_os().collect::<Vec<_>>();
-    let args = match args
-        .into_iter()
+    let args = match args_os()
         .map(|arg| arg.into_string())
         .collect::<Result<Vec<_>, _>>()
     {
@@ -97,8 +95,7 @@ pub fn main() -> ExitCode {
     {
         print_usage();
         return ExitCode::SUCCESS;
-    }
-    if args.iter().any(|arg| matches!(*arg, "--version")) {
+    } else if args.iter().any(|arg| matches!(*arg, "--version")) {
         print_version();
         return ExitCode::SUCCESS;
     }
@@ -138,6 +135,7 @@ pub fn main() -> ExitCode {
         eprint!("{}", report);
         return ExitCode::FAILURE;
     }
+
     for interface_ast in interface_asts.iter_mut() {
         report.append(type_check(interface_ast));
     }
@@ -149,7 +147,6 @@ pub fn main() -> ExitCode {
     // TODO: parallelize this
     for implementation_file in implementation_files {
         // frontend
-
         let mut ast = match parse(implementation_file) {
             Ok((ast, file_report)) => {
                 report.append(file_report);
@@ -169,7 +166,6 @@ pub fn main() -> ExitCode {
         report.append(file_report);
 
         // middleend
-
         let mut c_level_ir = to_c_level_ir(&ast, &interface_asts);
 
         let file_report = borrow_check(&mut c_level_ir);
@@ -186,7 +182,6 @@ pub fn main() -> ExitCode {
         // TODO: low-level IR optimizations
 
         // backend
-
         let FileContents { filename, contents } = match settings.setting_architecture {
             "x86_64-linux" => x86_64_linux::backend(&low_level_ir, &settings),
             _ => internal_error!(

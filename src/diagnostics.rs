@@ -92,12 +92,14 @@ impl<'args> PartialEq for Diagnostic<'args> {
         self.cmp(other) == Ordering::Equal
     }
 }
+
 macro_rules! diagnostic {
     ($level:expr, $location:expr, $($message:tt)*) => {
         crate::diagnostics::Diagnostic::new($level, Some($location), format!($($message)*))
     };
 }
 pub(crate) use diagnostic;
+
 macro_rules! locationless_diagnostic {
     ($level:expr, $($message:tt)*) => {
         crate::diagnostics::Diagnostic::new($level, None, format!($($message)*))
@@ -124,7 +126,6 @@ impl<'args> DiagnosticReport<'args> {
         self.diagnostics.append(&mut report.diagnostics);
     }
 }
-
 impl<'args> Display for DiagnosticReport<'args> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut diagnostics = self.diagnostics.iter().collect::<Vec<_>>();
