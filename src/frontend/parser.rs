@@ -17,10 +17,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::diagnostics::DiagnosticReport;
+use crate::diagnostics::DiagnosticResult;
 
 use super::ast::AstNode;
 
-pub fn parse(filename: &str) -> Result<(AstNode<'_>, DiagnosticReport<'_>), DiagnosticReport<'_>> {
+pub fn parse(filename: &str) -> DiagnosticResult<AstNode> {
     todo!();
 }

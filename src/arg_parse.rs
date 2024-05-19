@@ -18,7 +18,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::{
-    diagnostics::{diagnostic, locationless_diagnostic, DiagnosticLevel, DiagnosticReport},
+    diagnostics::{
+        diagnostic, locationless_diagnostic, DiagnosticLevel, DiagnosticReport, DiagnosticResult,
+    },
     settings::Settings,
     source_location::SourceLocation,
 };
@@ -30,9 +32,7 @@ pub struct Configuration<'args> {
     pub settings: Settings<'args>,
 }
 
-pub fn parse_args(
-    args: Vec<&str>,
-) -> Result<(Configuration<'_>, DiagnosticReport<'_>), DiagnosticReport<'_>> {
+pub fn parse_args(args: Vec<&str>) -> DiagnosticResult<Configuration> {
     let mut report = DiagnosticReport::default();
     let mut interface_files = Vec::new();
     let mut implementation_files = Vec::new();

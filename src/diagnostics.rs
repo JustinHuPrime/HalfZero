@@ -19,7 +19,7 @@
 
 use std::{
     cmp::Ordering,
-    fmt::{Display, Formatter, Result},
+    fmt::{self, Display, Formatter},
 };
 
 use crate::source_location::SourceLocation;
@@ -31,7 +31,7 @@ pub enum DiagnosticLevel {
     Error,
 }
 impl Display for DiagnosticLevel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Ignore => write!(f, "ignored"),
             Self::Warn => write!(f, "warning"),
@@ -60,7 +60,7 @@ impl<'args> Diagnostic<'args> {
     }
 }
 impl<'args> Display for Diagnostic<'args> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.location {
             Some(location) => {
                 write!(f, "{}: {}: {}", location, self.level, self.message)
@@ -127,7 +127,7 @@ impl<'args> DiagnosticReport<'args> {
     }
 }
 impl<'args> Display for DiagnosticReport<'args> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut diagnostics = self.diagnostics.iter().collect::<Vec<_>>();
         diagnostics.sort();
 
@@ -137,6 +137,8 @@ impl<'args> Display for DiagnosticReport<'args> {
         Ok(())
     }
 }
+
+pub type DiagnosticResult<'args, T> = Result<(T, DiagnosticReport<'args>), DiagnosticReport<'args>>;
 
 macro_rules! internal_error {
     ($($message:tt)+) => {
