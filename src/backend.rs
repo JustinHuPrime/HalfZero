@@ -24,8 +24,3 @@ pub struct FileContents {
     pub filename: String,
     pub contents: String,
 }
-impl FileContents {
-    pub fn new(filename: String, contents: String) -> Self {
-        Self { filename, contents }
-    }
-}

@@ -185,7 +185,7 @@ pub fn main() -> ExitCode {
         let FileContents { filename, contents } = match settings.setting_architecture {
             "x86_64-linux" => x86_64_linux::backend(&low_level_ir, &settings),
             _ => internal_error!(
-                "invalid architecture '{}' encountered",
+                "invalid architecture '{:?}' encountered",
                 settings.setting_architecture
             ),
         };

@@ -32,22 +32,14 @@ use super::FileContents;
 pub mod allocator;
 pub mod translator;
 
+/// An assembly file, for one translation unit
 #[derive(Debug)]
-/**
- * An assembly file, for one translation unit
- */
 pub struct Asm<'args> {
-    /**
-     * Translation unit's filename (e.g. something.h0)
-     */
+    /// Translation unit's filename (e.g. something.h0)
     filename: &'args str,
-    /**
-     * List of external symbols referenced by this file
-     */
+    /// List of external symbols referenced by this file
     externs: Vec<String>,
-    /**
-     * List of fragments in this file
-     */
+    /// List of fragments in this file
     blocks: Vec<AsmFrag>,
 }
 impl<'args> Display for Asm<'args> {
@@ -55,7 +47,9 @@ impl<'args> Display for Asm<'args> {
         let mut blocks = self.blocks.iter().collect::<Vec<_>>();
         blocks.sort();
 
-        writeln!(f, "extern {}", self.externs.join(","))?;
+        if !self.externs.is_empty() {
+            writeln!(f, "extern {}", self.externs.join(","))?;
+        }
         let mut section_header = "";
         for block in blocks {
             if section_header != block.section_header() {
@@ -70,90 +64,50 @@ impl<'args> Display for Asm<'args> {
     }
 }
 
+/// An assembly fragment - either function, some static data, or some
+/// statically allocated space
 #[derive(Debug)]
-/**
- * An assembly fragment - either function, some static data, or some statically
- * allocated space
- */
 pub enum AsmFrag {
-    /**
-     * A function body
-     */
+    /// A function body
     Text {
-        /**
-         * Name of the function
-         */
+        /// Name of the function
         name: AsmName,
-        /**
-         * Should we export this so other files can use this?
-         */
+        /// Should we export this so other files can use this?
         exported: bool,
-        /**
-         * Actual text of the function body
-         */
+        /// Actual text of the function body
         instructions: Vec<AsmInstruction>,
     },
-    /**
-     * Runtime-mutable data
-     */
+    /// Runtime-mutable data
     Data {
-        /**
-         * Name of the data
-         */
+        /// Name of the data
         name: AsmName,
-        /**
-         * Should we export this so other files can use this?
-         */
+        /// Should we export this so other files can use this?
         exported: bool,
-        /**
-         * Alignment requirement for this data
-         */
+        /// Alignment requirement for this data
         alignment: NonZeroU64,
-        /**
-         * Actual data
-         */
+        /// Actual data
         data: Vec<AsmData>,
     },
-    /**
-     * Runtime-immutable data
-     */
+    /// Runtime-immutable data
     RoData {
-        /**
-         * Name of the data
-         */
+        /// Name of the data
         name: AsmName,
-        /**
-         * Should we export this so other files can use this?
-         */
+        /// Should we export this so other files can use this?
         exported: bool,
-        /**
-         * Alignment requirement for this data
-         */
+        /// Alignment requirement for this data
         alignment: NonZeroU64,
-        /**
-         * Actual data
-         */
+        /// Actual data
         data: Vec<AsmData>,
     },
-    /**
-     * Runtime-mutable data, zero initialized
-     */
+    /// Runtime-mutable data, zero initialized
     Bss {
-        /**
-         * Name of the data
-         */
+        /// Name of the data
         name: AsmName,
-        /**
-         * Should we export this so other files can use this?
-         */
+        /// Should we export this so other files can use this?
         exported: bool,
-        /**
-         * Alignment requirement for this data
-         */
+        /// Alignment requirement for this data
         alignment: NonZeroU64,
-        /**
-         * Size of this data
-         */
+        /// Size of this data
         size: NonZeroU64,
     },
 }
@@ -206,7 +160,7 @@ impl Display for AsmFrag {
                 if *exported {
                     writeln!(f, "global {name}:data ({})", AsmFrag::size_of(data))?;
                 }
-                writeln!(f, "{name}")?;
+                writeln!(f, "{name}:")?;
                 for datum in data {
                     writeln!(f, "\t{datum}")?;
                 }
@@ -224,7 +178,7 @@ impl Display for AsmFrag {
                 if *exported {
                     writeln!(f, "global {name}:data ({size})")?;
                 }
-                write!(f, "align {alignment}\n{name}\n\tresb {size}\n")
+                write!(f, "align {alignment}\n{name}:\n\tresb {size}\n")
             }
         }
     }
@@ -263,18 +217,12 @@ impl PartialEq for AsmFrag {
     }
 }
 
+/// A label
 #[derive(Debug)]
-/**
- * A label
- */
 pub enum AsmName {
-    /**
-     * A globally exported label
-     */
+    /// A globally exported label
     Global(String),
-    /**
-     * A file-specific label
-     */
+    /// A file-specific label
     Local(NonZeroU64),
 }
 impl Display for AsmName {
@@ -286,10 +234,8 @@ impl Display for AsmName {
     }
 }
 
+/// Compile-time data
 #[derive(Debug)]
-/**
- * Compile-time data
- */
 pub enum AsmData {
     U8(u8),
     I8(i8),
@@ -301,21 +247,13 @@ pub enum AsmData {
     I64(i64),
     F32(f32),
     F64(f64),
-    /**
-     * A UTF-32 codepoint
-     */
+    /// A UTF-32 codepoint
     Char(char),
-    /**
-     * A UTF-8 character string
-     */
+    /// A UTF-8 character string
     String(String),
-    /**
-     * A label, local or global
-     */
+    /// A label, local or global
     Label(AsmName),
-    /**
-     * Uninitialized space
-     */
+    /// Uninitialized space
     Padding(NonZeroU64),
 }
 impl AsmData {
@@ -330,9 +268,7 @@ impl AsmData {
         }
     }
 }
-/**
- * In alternate mode, formats for an operand instead of a data frag
- */
+/// In alternate mode, formats for an operand instead of a data frag
 impl Display for AsmData {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         if f.alternate() {
@@ -399,66 +335,53 @@ impl Display for AsmData {
     }
 }
 
+/// An instruction
 #[derive(Debug)]
-/**
- * An instruction
- */
 pub enum AsmInstruction {
-    /**
-     * Regular instruction - not the target of a jump and control flow unconditionally proceeds to the next instruction
-     */
+    /// Regular instruction - not the target of a jump and control flow
+    /// unconditionally proceeds to the next instruction
     RegularInstruction {
         skeleton: &'static str,
         operands: Vec<AsmOperand>,
     },
-    /**
-     * Move instruction - a regular instruction, but can be elided if the first read-from operand is allocated the same actual location as the first written-to operand
-     */
+    /// Move instruction - a regular instruction, but can be elided if the
+    /// first read-from operand is allocated the same actual location as the
+    /// first written-to operand
     MoveInstruction {
         skeleton: &'static str,
         operands: Vec<AsmOperand>,
     },
-    /**
-     * Jump instruction - control flow proceeds to the local label named in the target
-     */
+    /// Jump instruction - control flow proceeds to the local label named in
+    /// the target
     JumpInstruction {
         skeleton: &'static str,
         operands: Vec<AsmOperand>,
         target: NonZeroU64,
     },
-    /**
-     * Conditional jump - control flow might proceed normally or might go to the named target
-     */
+    /// Conditional jump - control flow might proceed normally or might go to
+    /// the named target
     ConditionalJumpInstruction {
         skeleton: &'static str,
         operands: Vec<AsmOperand>,
         target: NonZeroU64,
     },
-    /**
-     * A jump table - control flow goes to one of the named targets
-     */
+    /// A jump table - control flow goes to one of the named targets
     JumpTableInstruction {
         skeleton: &'static str,
         operands: Vec<AsmOperand>,
         targets: Vec<NonZeroU64>,
     },
-    /**
-     * A terminal instruction - control flow leaves this function
-     */
+    /// A terminal instruction - control flow leaves this function
     LeaveInstruction {
         skeleton: &'static str,
         operands: Vec<AsmOperand>,
     },
-    /**
-     * A local label - can be the target of a jump
-     */
+    /// A local label - can be the target of a jump
     LabelInstruction {
         skeleton: &'static str,
-        /**
-         * Must be exactly one Constant(Label(_))
-         */
+        /// Must be exactly one Constant(Label(_))
         operands: Vec<AsmOperand>,
-        name: Option<NonZeroU64>,
+        name: NonZeroU64,
     },
 }
 impl Display for AsmInstruction {
@@ -473,7 +396,7 @@ impl Display for AsmInstruction {
                 f,
                 "{}",
                 operands.get(arg_number).unwrap_or_else(|| internal_error!(
-                    "operand index {arg_number} out of range for skeleton {skeleton}"
+                    "operand index {arg_number:?} out of range for skeleton {skeleton:?}"
                 ))
             )
         }
@@ -515,7 +438,7 @@ impl Display for AsmInstruction {
                 }
                 if escaped {
                     if skeleton.ends_with('`') {
-                        internal_error!("unterminated operand escape for skeleton {skeleton}");
+                        internal_error!("unterminated operand escape for skeleton {skeleton:?}");
                     }
                     write_operand(f, operands, arg_number, skeleton)?;
                 }
@@ -525,32 +448,25 @@ impl Display for AsmInstruction {
     }
 }
 
+/// An operand to an assembly instruction
 #[derive(Debug)]
-/**
- * An operand to an assembly instruction
- */
 pub enum AsmOperand {
-    /**
-     * A specific, named register
-     */
+    /// A specific, named register
     Register {
         name: AsmRegister,
         size: NonZeroU64,
         read: bool,
         write: bool,
     },
-    /**
-     * A reference to the stack - equivalent to "[rsp + {offset}]"
-     */
+    /// A reference to the stack - equivalent to "[rsp + {offset}]"
     StackLocation {
         offset: u64,
         size: NonZeroU64,
         read: bool,
         write: bool,
     },
-    /**
-     * A temporary location - is converted into a register or a stack reference based on the allocation type
-     */
+    /// A temporary location - is converted into a register or a stack
+    /// reference based on the allocation type
     Temporary {
         name: NonZeroU64,
         alignment: NonZeroU64,
@@ -558,25 +474,24 @@ pub enum AsmOperand {
         allocation_type: AllocationType,
         read: bool,
         write: bool,
-        /**
-         * Can we skip patching if this turned into a stack reference (only meaningful if allocation_type != Memory)
-         */
+        /// Can we skip patching if this turned into a stack reference (only
+        /// meaningful if allocation_type != Memory)
         no_patch: bool,
     },
-    /**
-     * A reference to part of a temporary location on the stack - is converted into a stack reference after allocation; reads and writes count as reads and writes of the whole temporary
-     */
+    /// A reference to part of a temporary location on the stack - is converted
+    /// into a stack reference after allocation; reads and writes count as
+    /// reads and writes of the whole temporary
     TemporaryPart {
+        /// Must be an actual temporary
         temporary: Box<AsmOperand>,
+        /// Either a register-like thing, a constant, or both
         offset: Vec<AsmOperand>,
-        alignment: NonZeroU64,
         size: NonZeroU64,
         read: bool,
         write: bool,
     },
-    /**
-     * Constant data - must be a valid immediate operand for this particular usage
-     */
+    /// Constant data - must be a valid immediate operand for this particular
+    /// usage
     Constant(AsmData),
 }
 impl Display for AsmOperand {
@@ -591,176 +506,176 @@ impl Display for AsmOperand {
                         2 => "ax",
                         4 => "eax",
                         8 => "rax",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RBX => match size.get() {
                         1 => "bl",
                         2 => "bx",
                         4 => "ebx",
                         8 => "rbx",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RCX => match size.get() {
                         1 => "cl",
                         2 => "cx",
                         4 => "ecx",
                         8 => "rcx",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RDX => match size.get() {
                         1 => "dl",
                         2 => "dx",
                         4 => "edx",
                         8 => "rdx",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RSI => match size.get() {
                         1 => "sil",
                         2 => "si",
                         4 => "esi",
                         8 => "rsi",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RDI => match size.get() {
                         1 => "dil",
                         2 => "di",
                         4 => "edi",
                         8 => "rdi",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RSP => match size.get() {
                         1 => "spl",
                         2 => "sp",
                         4 => "esp",
                         8 => "rsp",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RBP => match size.get() {
                         1 => "bpl",
                         2 => "bp",
                         4 => "ebp",
                         8 => "rbp",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R8 => match size.get() {
                         1 => "r8b",
                         2 => "r8w",
                         4 => "r8d",
                         8 => "r8",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R9 => match size.get() {
                         1 => "r9b",
                         2 => "r9w",
                         4 => "r9d",
                         8 => "r9",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R10 => match size.get() {
                         1 => "r10b",
                         2 => "r10w",
                         4 => "r10d",
                         8 => "r10",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R11 => match size.get() {
                         1 => "r11b",
                         2 => "r11w",
                         4 => "r11d",
                         8 => "r11",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R12 => match size.get() {
                         1 => "r12b",
                         2 => "r12w",
                         4 => "r12d",
                         8 => "r12",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R13 => match size.get() {
                         1 => "r13b",
                         2 => "r13w",
                         4 => "r13d",
                         8 => "r13",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R14 => match size.get() {
                         1 => "r14b",
                         2 => "r14w",
                         4 => "r14d",
                         8 => "r14",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::R15 => match size.get() {
                         1 => "r15b",
                         2 => "r15w",
                         4 => "r15d",
                         8 => "r15",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM0 => match size.get() {
                         4 | 8 | 16 => "xmm0",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM1 => match size.get() {
                         4 | 8 | 16 => "xmm1",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM2 => match size.get() {
                         4 | 8 | 16 => "xmm2",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM3 => match size.get() {
                         4 | 8 | 16 => "xmm3",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM4 => match size.get() {
                         4 | 8 | 16 => "xmm4",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM5 => match size.get() {
                         4 | 8 | 16 => "xmm5",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM6 => match size.get() {
                         4 | 8 | 16 => "xmm6",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM7 => match size.get() {
                         4 | 8 | 16 => "xmm7",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM8 => match size.get() {
                         4 | 8 | 16 => "xmm8",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM9 => match size.get() {
                         4 | 8 | 16 => "xmm9",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM10 => match size.get() {
                         4 | 8 | 16 => "xmm10",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM11 => match size.get() {
                         4 | 8 | 16 => "xmm11",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM12 => match size.get() {
                         4 | 8 | 16 => "xmm12",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM13 => match size.get() {
                         4 | 8 | 16 => "xmm13",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM14 => match size.get() {
                         4 | 8 | 16 => "xmm14",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::XMM15 => match size.get() {
                         4 | 8 | 16 => "xmm15",
-                        size => internal_error!("invalid register size {size}"),
+                        size => internal_error!("invalid register size {size:?}"),
                     },
                     AsmRegister::RFLAGS =>
                         internal_error!("tried to display rflags as explicit operand"),
@@ -775,20 +690,16 @@ impl Display for AsmOperand {
     }
 }
 
+/// What sort of actual location does this need
 #[derive(Debug)]
-/**
- * What sort of actual location does this need
- */
 pub enum AllocationType {
     General,
     Floating,
     Memory,
 }
 
-#[derive(Debug)]
-/**
- * List of valid register names
- */
+/// List of valid register names
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AsmRegister {
     RAX,
     RBX,
@@ -825,9 +736,7 @@ pub enum AsmRegister {
     RFLAGS,
 }
 
-/**
- * Given some low-level IR, produce the corresponding x86_64 nasm assembly
- */
+/// Given some low-level IR, produce the corresponding x86_64 nasm assembly
 pub fn backend(low_level_ir: &LowLevelIR, settings: &Settings) -> FileContents {
     let mut asm = to_temp_asm(low_level_ir);
 
@@ -837,8 +746,98 @@ pub fn backend(low_level_ir: &LowLevelIR, settings: &Settings) -> FileContents {
 
     // TODO: register-level ASM optimization
 
-    FileContents::new(
-        format!("{}{}.s", settings.setting_output_prefix, asm.filename),
-        format!("{asm}"),
-    )
+    FileContents {
+        filename: format!("{}{}.s", settings.setting_output_prefix, asm.filename),
+        contents: format!("{asm}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::f64;
+
+    use super::*;
+
+    #[test]
+    fn test_simple_asm_output() {
+        let asm = Asm {
+            filename: "file.h0",
+            externs: vec![String::from("tau")],
+            blocks: vec![
+                AsmFrag::Data {
+                    name: AsmName::Global(String::from("pi")),
+                    exported: true,
+                    alignment: 8.try_into().unwrap(),
+                    data: vec![AsmData::F64(f64::consts::PI)],
+                },
+                AsmFrag::Text {
+                    name: AsmName::Global(String::from("frob")),
+                    exported: true,
+                    instructions: vec![
+                        AsmInstruction::RegularInstruction {
+                            skeleton: "frob `0, `1",
+                            operands: vec![
+                                AsmOperand::Register {
+                                    name: AsmRegister::RAX,
+                                    size: 8.try_into().unwrap(),
+                                    read: false,
+                                    write: true,
+                                },
+                                AsmOperand::Register {
+                                    name: AsmRegister::RDX,
+                                    size: 8.try_into().unwrap(),
+                                    read: false,
+                                    write: true,
+                                },
+                            ],
+                        },
+                        AsmInstruction::RegularInstruction {
+                            skeleton: "nop",
+                            operands: vec![],
+                        },
+                        AsmInstruction::LeaveInstruction {
+                            skeleton: "ret",
+                            operands: vec![
+                                AsmOperand::Register {
+                                    name: AsmRegister::RAX,
+                                    size: 8.try_into().unwrap(),
+                                    read: true,
+                                    write: false,
+                                },
+                                AsmOperand::Register {
+                                    name: AsmRegister::RDX,
+                                    size: 8.try_into().unwrap(),
+                                    read: true,
+                                    write: false,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        assert_eq!(
+            format!("{asm}"),
+            "
+extern tau
+section .text
+global frob:function (frob.end - frob)
+frob:
+\tfrob rax, rdx
+\tnop
+\tret
+.end:
+section .data
+align 8
+global pi:data (8)
+pi:
+\tdq 3.141592653589793
+.end:
+section .comment
+db \"Half-Zero version 0.3.1\"
+section .note.GNU-stack noalloc noexec nowrite progbits
+"
+            .trim_start()
+        );
+    }
 }
